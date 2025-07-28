@@ -1,4 +1,4 @@
-name: CI Pipeline for Spring Boot App (via Reusable Workflow)
+name: CI Pipeline for Spring---Boot App (via Reusable Workflow)
 
 on:
   push:
