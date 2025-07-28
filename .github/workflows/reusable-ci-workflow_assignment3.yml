@@ -86,6 +86,7 @@ jobs:
 
       - name: SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@v2
+
         with:
           projectBaseDir: complete
           args: >
