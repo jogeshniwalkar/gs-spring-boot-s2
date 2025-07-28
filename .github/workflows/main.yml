@@ -9,7 +9,7 @@ on:
 
 jobs:
   run-reusable-ci:
-    uses: /.github/workflows/reusable-ci-workflow_assignment3.yml
+    uses: ./.github/workflows/reusable-ci-workflow_assignment3.yml
     with:
       java_version: '21'
       sonar_project_key: 'jogeshniwalkar_gs-spring-boot'
