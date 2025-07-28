@@ -133,7 +133,7 @@ jobs:
           server_address: smtp.gmail.com
           server_port: 587
           username: niwalkar.jogesh@gmail.com
-          password: ${{ secrets.gmail_app_password }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
           subject: "🚨 CI Failed: ${{ github.workflow }}"
           to: niwalkar.jogesh@gmail.com
           from: GitHub Actions
