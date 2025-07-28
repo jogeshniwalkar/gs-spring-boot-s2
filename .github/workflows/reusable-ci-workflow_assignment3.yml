@@ -72,6 +72,7 @@ jobs:
   sonarcloud-scan:
     needs: build-and-test
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -86,7 +87,8 @@ jobs:
 
       - name: SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@v2
-
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           projectBaseDir: complete
           args: >
@@ -95,8 +97,6 @@ jobs:
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.java.binaries=target/classes
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
-        env:
-            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   docker-build-and-push:
     needs: sonarcloud-scan
