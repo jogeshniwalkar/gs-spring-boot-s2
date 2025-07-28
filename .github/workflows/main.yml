@@ -15,6 +15,7 @@ jobs:
       sonar_project_key: 'jogeshniwalkar_gs-spring-boot'
       docker_username: 'jogesh22'
       image_name: spring-boot-app
+
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
