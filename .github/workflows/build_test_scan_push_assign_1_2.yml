@@ -1,0 +1,168 @@
+name: Build Spring Boot App and Run Automated Tests
+on:
+#  push:
+#    branches:
+#      - develop
+#      - main
+#  pull_request:
+#    branches:
+#      - develop
+#      - main
+  workflow_dispatch:
+env:
+  IMAGE_NAME: spring-boot-app
+  COMMIT_ID: ${{ github.sha }}
+  JAVA_VERSION: 21
+  SONAR_PROJECT_KEY: jogeshniwalkar_gs-spring-boot
+  DOCKER_USERNAME: jogesh22
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Print GitHub metadata
+        run: echo '${{ toJSON(github) }}'
+
+      - name: Checkout the Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build the project using Maven wrapper
+        working-directory: complete
+        run: |
+          chmod +x mvnw
+          ./mvnw clean verify
+        continue-on-error: false
+
+      - name: Run Unit & Integration Tests
+        working-directory: complete
+        run: ./mvnw test --no-transfer-progress
+        continue-on-error: false
+
+      - name: Upload Test Reports (optional)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: complete/target/surefire-reports/
+        continue-on-error: false
+
+#      - name: Upload Jacoco Report
+#        if: always()
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: jacoco-report
+#          path: complete/target/site/jacoco
+
+      - name: Upload Compiled Classes
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-classes
+          path: complete/target/classes
+
+  sonarcloud-scan:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the Code
+        uses: actions/checkout@v4
+
+      - name: Prepare directory for binaries
+        run: mkdir -p complete/target/classes
+
+      - name: Download Compiled Classes
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-classes
+          path: complete/target/classes
+
+#      - name: Download Jacoco Report
+#        uses: actions/download-artifact@v4
+#        with:
+#          name: jacoco-report
+#          path: complete/target/site/jacoco/
+
+      - name: SonarCloud Scan
+        uses: sonarsource/sonarcloud-github-action@v2
+        with:
+          projectBaseDir: complete
+          args: >
+            -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=jogeshniwalkar
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.java.binaries=target/classes
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Upload coverage report as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+            name: jacoco-report
+            path: target/site/jacoco/*
+
+  docker-build-and-push:
+    needs: sonarcloud-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login in to Dockerhub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Print Environment Variables
+        working-directory: complete
+        run: |
+          echo "Branch is ${{ github.ref }}"
+          echo "Image is $IMAGE_NAME"
+
+      - name: Build,  Tag and Push Docker Image
+        working-directory: complete
+        run: |
+          docker build -t $DOCKER_USERNAME/$IMAGE_NAME:${{ github.sha }} .
+          BRANCH_NAME=$(echo "${GITHUB_REF#refs/heads/}" | sed 's/\//-/g')
+          docker tag $DOCKER_USERNAME/$IMAGE_NAME:${{ github.sha }} $DOCKER_USERNAME/$IMAGE_NAME-$BRANCH_NAME:${{ github.sha }}
+          docker tag $DOCKER_USERNAME/$IMAGE_NAME:${{ github.sha }} $DOCKER_USERNAME/$IMAGE_NAME-$BRANCH_NAME:latest
+          docker push $DOCKER_USERNAME/$IMAGE_NAME-$BRANCH_NAME:${{ github.sha }}
+          docker push $DOCKER_USERNAME/$IMAGE_NAME-$BRANCH_NAME:latest
+
+
+  notify:
+    name: Notify team on failure
+    runs-on: ubuntu-latest
+    if: failure()
+    steps:
+      - name: Send Email Notification
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: niwalkar.jogesh@gmail.com
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: "🚨 Build/Test Failed: ${{ github.workflow }}"
+          to: niwalkar.jogesh@gmail.com
+          from: ${{ github.actor }}
+          body: |
+            
+            Hello Team,
+            
+            The GitHub Actions workflow **Build and Test Spring Boot App** has failed.
+            Repository: jogeshniwalkar/gs-spring-boot
+            Branch: develop
+            Actor: jogeshniwalkar
+            Run URL: https://github.com/jogeshniwalkar/gs-spring-boot/actions/runs/${{ github.run_id }}
+            
+            Please check the logs and take action.
+            -- GitHub Actions- JOGESH

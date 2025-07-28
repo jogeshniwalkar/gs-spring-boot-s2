@@ -1,0 +1,21 @@
+name: CI Pipeline for Spring Boot App (via Reusable Workflow)
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+jobs:
+  run-reusable-ci:
+    uses: /.github/workflows/reusable-ci-workflow_assignment3.yml
+    with:
+      java_version: '21'
+      sonar_project_key: 'jogeshniwalkar_gs-spring-boot'
+      docker_username: 'jogesh22'
+      image_name: spring-boot-app
+    secrets:
+      sonar_token: ${{ secrets.SONAR_TOKEN }}
+      docker_hub_token: ${{ secrets.DOCKER_HUB_TOKEN }}
+      gmail_app_password: ${{ secrets.GMAIL_APP_PASSWORD }}
