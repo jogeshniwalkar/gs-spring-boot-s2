@@ -23,8 +23,7 @@ on:
         required: false
         type: boolean
         default: true
-    env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN}}
+
     secrets:
       SONAR_TOKEN:
         required: true
