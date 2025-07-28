@@ -95,7 +95,7 @@ jobs:
             -Dsonar.java.binaries=target/classes
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
         env:
-          SONAR_TOKEN: ${{ secrets.sonar_token }}
+          SONAR_TOKEN: ${{ secrets. }}
 
   docker-build-and-push:
     needs: sonarcloud-scan
