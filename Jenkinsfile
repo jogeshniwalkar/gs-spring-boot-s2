@@ -19,7 +19,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                echo "Running build......."
+                echo "Running build.........."
                 // Add your build steps here
             }
         }
