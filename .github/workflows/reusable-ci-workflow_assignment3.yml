@@ -1,143 +1,143 @@
-name: Reusable CI Workflow for Spring Boot
+# name: Reusable CI Workflow for Spring Boot
 
-on:
-  workflow_call:
-    inputs:
-      java_version:
-        required: true
-        type: string
-      sonar_project_key:
-        required: true
-        type: string
-      docker_username:
-        required: true
-        type: string
-      image_name:
-        required: true
-        type: string
-      maven_goals:
-        required: false
-        type: string
-        default: "clean verify"
-      upload_reports:
-        required: false
-        type: boolean
-        default: true
+# on:
+#   workflow_call:
+#     inputs:
+#       java_version:
+#         required: true
+#         type: string
+#       sonar_project_key:
+#         required: true
+#         type: string
+#       docker_username:
+#         required: true
+#         type: string
+#       image_name:
+#         required: true
+#         type: string
+#       maven_goals:
+#         required: false
+#         type: string
+#         default: "clean verify"
+#       upload_reports:
+#         required: false
+#         type: boolean
+#         default: true
 
-    secrets:
-      SONAR_TOKEN:
-        required: true
-      DOCKER_HUB_TOKEN:
-        required: true
-      GMAIL_APP_PASSWORD:
-        required: true
+#     secrets:
+#       SONAR_TOKEN:
+#         required: true
+#       DOCKER_HUB_TOKEN:
+#         required: true
+#       GMAIL_APP_PASSWORD:
+#         required: true
 
-jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+# jobs:
+#   build-and-test:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
 
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ inputs.java_version }}
-          distribution: 'temurin'
-          cache: 'maven'
+#       - name: Set up JDK
+#         uses: actions/setup-java@v4
+#         with:
+#           java-version: ${{ inputs.java_version }}
+#           distribution: 'temurin'
+#           cache: 'maven'
 
-      - name: Build with Maven
-        working-directory: complete
-        run: |
-          chmod +x mvnw
-          ./mvnw ${{ inputs.maven_goals }}
+#       - name: Build with Maven
+#         working-directory: complete
+#         run: |
+#           chmod +x mvnw
+#           ./mvnw ${{ inputs.maven_goals }}
 
-      - name: Run Tests
-        working-directory: complete
-        run: ./mvnw test --no-transfer-progress
+#       - name: Run Tests
+#         working-directory: complete
+#         run: ./mvnw test --no-transfer-progress
 
-      - name: Upload Test Reports
-        if: ${{ inputs.upload_reports && always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-reports
-          path: complete/target/surefire-reports/
+#       - name: Upload Test Reports
+#         if: ${{ inputs.upload_reports && always() }}
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: test-reports
+#           path: complete/target/surefire-reports/
 
-      - name: Upload Compiled Classes
-        if: ${{ inputs.upload_reports }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: compiled-classes
-          path: complete/target/classes
+#       - name: Upload Compiled Classes
+#         if: ${{ inputs.upload_reports }}
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: compiled-classes
+#           path: complete/target/classes
 
-  sonarcloud-scan:
-    needs: build-and-test
-    runs-on: ubuntu-latest
+#   sonarcloud-scan:
+#     needs: build-and-test
+#     runs-on: ubuntu-latest
 
-    steps:
-      - uses: actions/checkout@v4
+#     steps:
+#       - uses: actions/checkout@v4
 
-      - name: Prepare binary dir
-        run: mkdir -p complete/target/classes
+#       - name: Prepare binary dir
+#         run: mkdir -p complete/target/classes
 
-      - name: Download compiled classes
-        uses: actions/download-artifact@v4
-        with:
-          name: compiled-classes
-          path: complete/target/classes
+#       - name: Download compiled classes
+#         uses: actions/download-artifact@v4
+#         with:
+#           name: compiled-classes
+#           path: complete/target/classes
 
-      - name: SonarCloud Scan
-        uses: sonarsource/sonarcloud-github-action@v2
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          projectBaseDir: complete
-          args: >
-            -Dsonar.projectKey=${{ inputs.sonar_project_key }}
-            -Dsonar.organization=jogeshniwalkar
-            -Dsonar.host.url=https://sonarcloud.io
-            -Dsonar.java.binaries=target/classes
-            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+#       - name: SonarCloud Scan
+#         uses: sonarsource/sonarcloud-github-action@v2
+#         env:
+#           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+#         with:
+#           projectBaseDir: complete
+#           args: >
+#             -Dsonar.projectKey=${{ inputs.sonar_project_key }}
+#             -Dsonar.organization=jogeshniwalkar
+#             -Dsonar.host.url=https://sonarcloud.io
+#             -Dsonar.java.binaries=target/classes
+#             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
 
-  docker-build-and-push:
-    needs: sonarcloud-scan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+#   docker-build-and-push:
+#     needs: sonarcloud-scan
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
 
-      - name: Docker Login
-        uses: docker/login-action@v3
-        with:
-          username: ${{ inputs.docker_username }}
-          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+#       - name: Docker Login
+#         uses: docker/login-action@v3
+#         with:
+#           username: ${{ inputs.docker_username }}
+#           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      - name: Build, Tag & Push Docker Image
-        working-directory: complete
-        run: |
-          COMMIT_ID=${{ github.sha }}
-          BRANCH_NAME=$(echo "${GITHUB_REF#refs/heads/}" | sed 's/\//-/g')
-          IMAGE=${{ inputs.docker_username }}/${{ inputs.image_name }}
+#       - name: Build, Tag & Push Docker Image
+#         working-directory: complete
+#         run: |
+#           COMMIT_ID=${{ github.sha }}
+#           BRANCH_NAME=$(echo "${GITHUB_REF#refs/heads/}" | sed 's/\//-/g')
+#           IMAGE=${{ inputs.docker_username }}/${{ inputs.image_name }}
 
-          docker build -t $DOCKER_USERNAME/$IMAGE:$COMMIT_ID .
-          docker tag $DOCKER_USERNAME/$IMAGE:$COMMIT_ID $DOCKER_USERNAME/$IMAGE-$BRANCH_NAME:$COMMIT_ID
-          docker tag $DOCKER_USERNAME/$IMAGE:$COMMIT_ID $DOCKER_USERNAME/$IMAGE-$BRANCH_NAME:latest
+#           docker build -t $DOCKER_USERNAME/$IMAGE:$COMMIT_ID .
+#           docker tag $DOCKER_USERNAME/$IMAGE:$COMMIT_ID $DOCKER_USERNAME/$IMAGE-$BRANCH_NAME:$COMMIT_ID
+#           docker tag $DOCKER_USERNAME/$IMAGE:$COMMIT_ID $DOCKER_USERNAME/$IMAGE-$BRANCH_NAME:latest
 
-          docker push $DOCKER_USERNAME/$IMAGE-$BRANCH_NAME:$COMMIT_ID
-          docker push $DOCKER_USERNAME/$IMAGE-$BRANCH_NAME:latest
+#           docker push $DOCKER_USERNAME/$IMAGE-$BRANCH_NAME:$COMMIT_ID
+#           docker push $DOCKER_USERNAME/$IMAGE-$BRANCH_NAME:latest
 
-  notify:
-    if: failure()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send Failure Email
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: niwalkar.jogesh@gmail.com
-          password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: "🚨 CI Failed: ${{ github.workflow }}"
-          to: niwalkar.jogesh@gmail.com
-          from: GitHub Actions
-          body: |
-            CI failed for ${{ github.repository }} on branch ${{ github.ref_name }}.
-            Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+#   notify:
+#     if: failure()
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Send Failure Email
+#         uses: dawidd6/action-send-mail@v3
+#         with:
+#           server_address: smtp.gmail.com
+#           server_port: 587
+#           username: niwalkar.jogesh@gmail.com
+#           password: ${{ secrets.GMAIL_APP_PASSWORD }}
+#           subject: "🚨 CI Failed: ${{ github.workflow }}"
+#           to: niwalkar.jogesh@gmail.com
+#           from: GitHub Actions
+#           body: |
+#             CI failed for ${{ github.repository }} on branch ${{ github.ref_name }}.
+#             Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
